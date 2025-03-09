@@ -1,8 +1,6 @@
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluttertbs/core/entities/players/base_player.dart';
-import 'package:fluttertbs/core/entities/players/user_player.dart';
-import 'package:fluttertbs/core/system/turn_base_system/base_turn_base_system.dart';
-import 'package:fluttertbs/core/system/turn_base_system/turn_base_system.dart';
+import 'package:fluttertbs/fluttertbs.dart';
 
 
 class FakeAiPlayer extends BasePlayer {
@@ -18,16 +16,21 @@ class FakeAiPlayer extends BasePlayer {
 
 class FakeUserPlayer extends UserPlayer {
 
-  void Function()? testOtherAction;
+  TaskCallback? testOtherAction;
 
   @override
   Future<void> onTurn() async {
-    await super.onTurn();
-    await testDoingSomething();
-    super.endTurn();
+    final future = super.onTurn();
+    await testOtherAction?.call();
+    return future;
   }
 
-  Future<void> testDoingSomething() async {
+}
+
+
+void main() {
+
+  Future<void> playerTestDoingSomething(UserPlayer player) async {
 
     print('玩家開始動作');
     await Future.delayed(Duration(milliseconds: 1000));
@@ -37,14 +40,8 @@ class FakeUserPlayer extends UserPlayer {
 
     print('玩家結束行動');
     await Future.delayed(Duration(milliseconds: 1000));
-
-    testOtherAction?.call();
   }
 
-}
-
-
-void main() {
   test('Test BaseTurnBaseSystem game loop, kill aiPlayer action', () async {
 
     int turnCounter = 0;
@@ -53,12 +50,15 @@ void main() {
 
     TurnBaseSystem turnBaseSystem = BaseTurnBaseSystem()..setPlayers([userPlayer, aiPlayer]);
 
-    userPlayer.testOtherAction = () {
+    userPlayer.testOtherAction = () async {
       turnCounter++;
+      await playerTestDoingSomething.call(userPlayer);
+
       if(turnCounter == 3) {
         print('玩家殺死了 aiPlayer');
         turnBaseSystem.removePlayer(aiPlayer);
       }
+      userPlayer.endTurn();
     };
 
     await turnBaseSystem.start();
@@ -74,12 +74,15 @@ void main() {
 
     TurnBaseSystem turnBaseSystem = BaseTurnBaseSystem()..setPlayers([userPlayer, aiPlayer]);
 
-    userPlayer.testOtherAction = () {
+    userPlayer.testOtherAction = () async {
       turnCounter++;
+      await playerTestDoingSomething.call(userPlayer);
+
       if(turnCounter == 3) {
         print('玩家自殺了');
         turnBaseSystem.removePlayer(userPlayer);
       }
+      userPlayer.endTurn();
     };
 
     await turnBaseSystem.start();

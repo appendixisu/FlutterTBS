@@ -1,0 +1,1 @@
+typedef OnTurnCallback = Future<void> Function();
